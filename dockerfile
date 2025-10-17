@@ -4,7 +4,9 @@ LABEL maintainer="jonnyan404"
 ARG TARGETPLATFORM
 COPY dist/ /tmp/
 WORKDIR /app
+ENV TZ=Asia/shanghai
 
+RUN apk add --no-cache tzdata
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         cp /tmp/nav-file-hub-linux-amd64 nav-file-hub && chmod +x nav-file-hub; \
     elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \

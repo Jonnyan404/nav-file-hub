@@ -14,5 +14,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     else \
         echo "Unsupported platform: $TARGETPLATFORM" && exit 1; \
     fi
+RUN rm -rf /tmp/
 
 CMD ["./nav-file-hub"]

@@ -1,0 +1,9 @@
+services:
+    nav-file-hub:
+        container_name: nav-file-hub
+        restart: always
+        ports:
+            - 10000:10000
+        volumes:
+            - /host/path/to/files:/data
+        image: jonnyan404/nav-file-hub:latest

@@ -24,7 +24,7 @@
 ## 🚀 安装
 
 ### 下载预构建版本
-从 [dist](https://github.com/Jonnyan404/nav-file-hub/dist) 页面下载最新版本的 `nav-file-hub.exe`（Windows）或 nav-file-hub（Linux/Mac）
+从 [dist](https://github.com/Jonnyan404/nav-file-hub/tree/main/dist) 页面下载最新版本的 `nav-file-hub.exe`（Windows）或 nav-file-hub（Linux/Mac）
 
 ### 使用 Docker
 1. 拉取镜像：

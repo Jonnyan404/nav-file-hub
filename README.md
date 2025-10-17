@@ -24,7 +24,29 @@
 ## 🚀 安装
 
 ### 下载预构建版本
-从 [Releases](https://github.com/Jonnyan404/nav-file-hub/releases) 页面下载最新版本的 `nav-file-hub.exe`（Windows）或 nav-file-hub（Linux/Mac）
+从 [dist](https://github.com/Jonnyan404/nav-file-hub/dist) 页面下载最新版本的 `nav-file-hub.exe`（Windows）或 nav-file-hub（Linux/Mac）
+
+### 使用 Docker
+1. 拉取镜像：
+   ```bash
+   docker pull jonnyan404/nav-file-hub:latest
+   # 二选一
+   docker pull ghcr.io/jonnyan404/nav-file-hub:latest
+   ```
+
+2. 运行容器（将 `/host/path/to/files` 替换为你的本地文件目录）：
+   ```bash
+   docker run -d --name nav-file-hub -p 10000:10000 \
+     -v /host/path/to/files:/data \
+     jonnyan404/nav-file-hub:latest
+   # 二选一
+   docker run -d --name nav-file-hub -p 10000:10000 \
+     -v /host/path/to/files:/data \
+     ghcr.io/jonnyan404/nav-file-hub:latest
+   ```
+
+3. 访问 `http://localhost:10000` 使用应用。
+
 
 ## 📖 使用
 

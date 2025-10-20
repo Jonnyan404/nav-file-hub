@@ -22,6 +22,10 @@
 ### 文件浏览器
 ![文件浏览器预览](https://github.com/Jonnyan404/nav-file-hub/blob/main/demo2.png)
 
+### MD渲染器
+![MD渲染器预览](https://github.com/Jonnyan404/nav-file-hub/blob/main/demo3.png)
+
+
 ## 🚀 安装
 
 ### 下载预构建版本

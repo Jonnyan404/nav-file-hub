@@ -5,5 +5,6 @@ services:
         ports:
             - 10000:10000
         volumes:
-            - /host/path/to/files:/data
+            - /host/path/to/files:/data # 用来挂载想共享的目录
+            - /host/path/to/config:/app/config # 用来挂载配置文件目录
         image: jonnyan404/nav-file-hub:latest

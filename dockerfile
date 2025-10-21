@@ -14,6 +14,6 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     else \
         echo "Unsupported platform: $TARGETPLATFORM" && exit 1; \
     fi
-RUN rm -rf /tmp/
+RUN rm -rf /tmp/ && mkdir -p /app/config 
 
-CMD ["./nav-file-hub"]
+CMD ["./nav-file-hub", "-config", "/app/config/config.yaml"]

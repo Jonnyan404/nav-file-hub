@@ -83,19 +83,50 @@ protected_routes:
     pwd: "admin"
   - router: "/"
     pwd: ""
-  - router: "config"
+  - router: "config" # 配置文件在线加密访问
     pwd: "admin"
 
 sites:
-  - name: 文件列表功能
-    url: 'D:\test\*'  # 目录通配符
-    router: "app"
-    rule: "rwd"  # 权限：r=读, w=写, d=删
+  - name: docker文件列表
+    url: '/data/*' # Docker容器文件列表示例
+    router: "docker"
+    rule: "rwd" #read, write, delete(此参数不设置则默认只读;设为空没有任何权限,仅展示列表名称.)
+
+  - name: 配置文件在线编辑
+    url: config.yaml
+    router: "config"
+
+  - name: markdown渲染列表
+    url: '/data/markdown/*.md'
+    router: "md"
+
+  - name: GitHub主页
+    url: https://github.com/jonnyan404
+    pin: true
+    # pin 设为 true, 则该站点会被置顶显示
+
+  - name: Dockerhub主页
+    url: https://hub.docker.com/r/jonnyan404
+    # router 为空, 会在所有页面显示
+
+  - name: Dockerhub主页
+    url: https://hub.docker.com/r/jonnyan404
+    hide: true
+    # hide 设为 true, 则不会在任何页面显示
+
+  - name: 内部工具
+    url: http://192.168.1.100/tools
+    router: "internal" # 这个站点将只在 /internal 路由下显示
+
+  - name: windows文件列表功能
+    url: 'D:\test\*' # window路径必须加单引号,否则会报错
+    router: "windows"
+    rule: "rwd" #read, write, delete(此参数不设置则默认只读;设为空没有任何权限,仅展示列表名称.)
 
   - name: 仅展示docx文件
-    url: 'D:\test\*.docx'  # 文件通配符
+    url: 'D:\test\*.docx' # window路径必须加单引号,否则会报错
     router: "doc"
-    rule: "rwd"
+    rule: "rwd" #read, write, delete(注释此参数则默认只读;设为空没有任何权限,仅展示列表名称.)
 ```
 
 ### 配置说明

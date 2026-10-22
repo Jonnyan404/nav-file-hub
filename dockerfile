@@ -7,7 +7,9 @@ ARG VERSION
 ARG TARGETARCH
 ARG TARGETVARIANT
 
-ENV TZ=Asia/shanghai
+# 注意大小写：tzdata 里的文件名是 Asia/Shanghai，
+# 写成小写 shanghai 时 musl 找不到该区，容器会静默回落 UTC（差 8 小时）。
+ENV TZ=Asia/Shanghai
 WORKDIR /app
 
 RUN apk add --no-cache tzdata ca-certificates

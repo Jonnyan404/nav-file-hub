@@ -29,7 +29,19 @@
 ## 🚀 安装
 
 ### 下载预构建版本
-从 [dist](https://github.com/Jonnyan404/nav-file-hub/tree/main/dist) 页面下载最新版本的 `nav-file-hub.exe`（Windows）或 nav-file-hub（Linux/Mac）
+从 [Releases](https://github.com/Jonnyan404/nav-file-hub/releases) 页面下载对应平台的二进制：
+
+| 平台 | 文件名 |
+| --- | --- |
+| Linux x86_64 | `nav-file-hub-linux-amd64` |
+| Linux ARM64 | `nav-file-hub-linux-arm64` |
+| Linux ARMv7（树莓派等 32 位 ARM） | `nav-file-hub-linux-armv7` |
+| Windows x86_64 | `nav-file-hub-windows-amd64.exe` |
+| Windows ARM64 | `nav-file-hub-windows-arm64.exe` |
+| macOS Intel | `nav-file-hub-darwin-amd64` |
+| macOS Apple Silicon | `nav-file-hub-darwin-arm64` |
+
+下载后 `chmod +x` 即可运行（Windows 直接双击）。每个 Release 附带 `checksums.txt`，可用 `sha256sum -c` 校验。
 
 ### 使用 Docker
 1. 拉取镜像：

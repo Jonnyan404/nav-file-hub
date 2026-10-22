@@ -3,13 +3,12 @@ name: Docker Publish
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag for the image'
+      version:
+        description: 'Release 版本号（如 v2026.10.22），镜像 tag 与之相同'
         required: true
         type: string
-        default: '20251017'
       latest:
-        description: 'Also tag as latest'
+        description: '同时打上 latest 标签'
         required: false
         type: boolean
         default: true
@@ -50,7 +49,7 @@ jobs:
           ghcr.io/${{ github.repository }}
           ${{ secrets.DOCKERHUB_USERNAME }}/nav-file-hub
         tags: |
-          type=raw,value=${{ inputs.tag }}
+          type=raw,value=${{ inputs.version }}
           type=raw,value=latest,enable=${{ inputs.latest }}
 
     - name: Build and push Docker image
@@ -58,7 +57,10 @@ jobs:
       with:
         context: .
         file: ./dockerfile
-        platforms: linux/amd64,linux/arm64
+        # arm/v7 对应树莓派等 32 位 ARM 设备
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
+        build-args: |
+          VERSION=${{ inputs.version }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

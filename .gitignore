@@ -50,3 +50,6 @@ m4/lt~obsolete.m4
 # can automatically generate from config.status script
 # (which is called by configure script))
 Makefile
+
+# 二进制产物改由 Release 分发，不再入库
+dist/

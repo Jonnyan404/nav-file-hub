@@ -38,10 +38,21 @@
 | Linux ARMv7（树莓派等 32 位 ARM） | `nav-file-hub-linux-armv7` |
 | Windows x86_64 | `nav-file-hub-windows-amd64.exe` |
 | Windows ARM64 | `nav-file-hub-windows-arm64.exe` |
-| macOS Intel | `nav-file-hub-darwin-amd64` |
-| macOS Apple Silicon | `nav-file-hub-darwin-arm64` |
+| macOS Intel（DMG 安装包） | `nav-file-hub-darwin-amd64.dmg` |
+| macOS Apple Silicon（DMG 安装包） | `nav-file-hub-darwin-arm64.dmg` |
+| macOS Intel（裸二进制） | `nav-file-hub-darwin-amd64` |
+| macOS Apple Silicon（裸二进制） | `nav-file-hub-darwin-arm64` |
 
-下载后 `chmod +x` 即可运行（Windows 直接双击）。每个 Release 附带 `checksums.txt`，可用 `sha256sum -c` 校验。
+Linux / macOS 下载后 `chmod +x` 即可运行（Windows 直接双击）。每个 Release 附带 `checksums.txt`，可用 `sha256sum -c` 校验。
+
+**macOS 用户**：推荐下载 `.dmg`，打开后把 `NavFileHub` 拖进「应用程序」即可，启动后驻留在菜单栏。
+
+首次打开会被 Gatekeeper 拦截（提示"无法验证开发者"），因为安装包未做代码签名。任选一种方式放行：
+
+- 在「系统设置 → 隐私与安全性」里点「仍要打开」；或
+- 终端执行 `xattr -dr com.apple.quarantine /Applications/NavFileHub.app`
+
+macOS 版的配置和日志分别存放在 `~/Library/Application Support/NavFileHub/` 和 `~/Library/Logs/NavFileHub/`。
 
 ### 使用 Docker
 1. 拉取镜像：

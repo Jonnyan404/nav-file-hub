@@ -110,6 +110,9 @@ protected_routes:
     pwd: "123"
   - router: "internal"
     pwd: "admin"
+    pwds: # 同一路由的额外密码，任意一个都能进
+      - "guest-2026"
+      - "another-one"
   - router: "/"
     pwd: ""
   - router: "config" # 配置文件在线加密访问
@@ -165,6 +168,9 @@ sites:
 - **port**：服务器端口。
 - **trash_retention_days**：回收站保留天数，超过自动清理；不写或 `0` 表示永久保留。
 - **protected_routes**：密码保护路由，`pwd` 为空表示无需密码。
+  - `pwd`：主密码。
+  - `pwds`：同一路由的额外密码，任意一个都能进。适合「自己的密码 + 给朋友的临时密码」，
+    临时密码删掉即刻失效（Cookie 是按「路由+密码」算的，删掉对应条目旧 Cookie 自动作废）。
 - **sites**：
   - `url`：本地路径，支持通配符（`*` 或 `*.ext`）。
   - `router`：路由名称。

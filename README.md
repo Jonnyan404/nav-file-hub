@@ -6,7 +6,8 @@
 
 - **MD渲染器**: 布局采用`readthedocs`样式,使用开源的`cherry-markdown`渲染
 - **文件浏览器**：浏览本地目录，支持文件上传、下载、删除、重命名。
-- **整目录下载**：文件夹一键打成 zip，边打包边发送；页面里有下载队列与实时进度。
+- **整目录下载**：文件夹一键打成 zip，边打包边发送；页面里有下载队列与实时进度。可以全局关掉，也可以按站点单独关掉。
+- **图床模式**：站点加 `mode: gallery`，列表变成图墙；图片走**直链**（`/img/a.png` 直接回原图，不套预览页），拖拽上传，一键复制 URL / Markdown / HTML。
 - **路径选择器**：配置页填地址时可以点选本机目录，也能继续手填。
 - **开箱即用**：没有配置文件也能跑，默认以只读方式浏览程序所在目录。
 - **回收站**：删除先进回收站，记录原路径，可一键恢复；支持保留期自动清理。
@@ -88,7 +89,9 @@
 | 参数 | 说明 |
 | --- | --- |
 | `-config <路径>` | 指定配置文件。留空时依次尝试 `./config.yaml`、平台默认位置 |
-| `-root <目录>` | 忽略配置文件，直接以只读文件浏览器提供这个目录 |
+| `-root <目录>` | 忽略配置文件，直接以文件浏览器提供这个目录（权限看 `-rule`，默认只读） |
+| `-rule <权限>` | `-root`／无配置兜底站点的权限：`r` 读、`w` 写、`d` 删，可组合成 `rwd`；留空表示只列名字。默认 `r` |
+| `-mode <模式>` | `-root`／无配置兜底站点的呈现方式：留空是文件列表，`gallery` 是图床 |
 | `-port <端口>` | 覆盖配置文件里的 `port` |
 | `-host <地址>` | 监听地址，默认所有网卡；填 `127.0.0.1` 表示只允许本机访问 |
 | `-data-dir <目录>` | 配置与日志的存放目录（容器里挂一个卷就够） |
@@ -100,11 +103,20 @@
 # 临时把某个目录只读分享出去，端口 8080
 nav-file-hub -root ~/Pictures -port 8080
 
+# 同一个目录，带上传和删除（想往里放文件时）
+nav-file-hub -root ~/Pictures -rule rwd -port 8080
+
+# 不开配置文件，直接起一个图床：拖进去就有直链
+nav-file-hub -root ~/Pictures/screenshots -rule rwd -mode gallery
+
 # 服务器上无托盘运行，配置和日志都放 /data
 nav-file-hub -config /data/config.yaml -data-dir /data -no-tray
 ```
 
 命令行给的值优先于配置文件，并且**不会**因为配置热重载被覆盖回去。
+
+`-rule` 只作用于 `-root` 与「没有可用配置」时的兜底站点，不会改动配置文件里已有的站点；
+`-mode` 同理。权限串写错会直接退出并说明原因 —— 静默当成只读或全权限都比报错更危险。
 
 ## 📖 使用
 
@@ -118,6 +130,7 @@ nav-file-hub -config /data/config.yaml -data-dir /data -no-tray
 - `/`：主页，显示所有站点。托盘里把「首页显示」切成别的页面后，`/` 会直接跳到对应 router。
 - `/app/`：文件浏览器（示例路由）。
 - `/doc/`：仅显示 `.docx` 文件（示例路由）。
+- `/img/`：图床（站点配了 `mode: gallery`），见下一节。
 - `/app/trash`：回收站（把 `app` 换成你的 `router` 名）。
 - `/config/`：在线编辑配置文件。
 
@@ -126,6 +139,81 @@ nav-file-hub -config /data/config.yaml -data-dir /data -no-tray
 - **首页显示**：在「导航首页 / 文件浏览器 / 阅读站」之间切换 `/` 的落点，选择会记住，重启仍然生效。
 - **打开配置目录**：在文件管理器里定位配置文件。
 - **退出**。
+
+## 🖼️ 图床模式
+
+给一个站点加上 `mode: gallery`，它的列表页就变成图墙：缩略图网格、拖拽上传、一键复制链接。
+
+```yaml
+sites:
+  - name: 图床
+    url: '/data/images/*' # 图片放在这里
+    router: "img"
+    rule: "rwd"           # 没有 w 就只能看，传不上去
+    mode: gallery
+```
+
+### 和文件浏览器的区别
+
+只有三点，但每一点都是「图床」能不能用的关键：
+
+1. **列表变图墙**：按修改时间倒序（刚传的排最前），点开看原图，透明 PNG 用棋盘格垫底。
+2. **图片走直链**：`/img/a.png` 直接返回原始字节，不套预览包装页。图床的产物就是
+   「一个能贴到别处的地址」，套一层 HTML 就当不了图用。
+3. **只收图片**：上传按扩展名白名单（jpg / jpeg / png / gif / webp / bmp / avif / ico）
+   加内容嗅探双重校验，SVG 与 HTML 一律拒收。
+
+权限没有另开一套：读 / 写 / 删仍然只看 `rule`。所以「只读图床」就是不写 `w`，
+「能删图的图床」就是带上 `d`。
+
+子目录也支持：图墙里会把子目录列成入口，点进去还是图墙，直链是 `/img/子目录/a.png`。
+单页最多渲染 500 张（再多就该分目录了），超出时会提示。
+
+### 复制链接
+
+每张图下面三个按钮，复制出来的都是**绝对地址**（带协议、主机和路由），可以直接贴到别处：
+
+| 按钮 | 复制内容 |
+| --- | --- |
+| 链接 | `https://host/img/a.png` |
+| MD | `![a.png](https://host/img/a.png)` |
+| HTML | `<img src="https://host/img/a.png" alt="a.png">` |
+
+### 给脚本 / 第三方客户端用
+
+上传接口就是文件浏览器那个，加 `?format=json` 即可拿到直链（`Accept: application/json` 也行）：
+
+```bash
+curl -F 'file=@screenshot.png' 'http://localhost:10000/img/upload?format=json'
+```
+
+```json
+{
+  "ok": true,
+  "files": [{
+    "name": "screenshot.png",
+    "path": "screenshot.png",
+    "url": "http://localhost:10000/img/screenshot.png",
+    "markdown": "![screenshot.png](http://localhost:10000/img/screenshot.png)",
+    "html": "<img src=\"http://localhost:10000/img/screenshot.png\" alt=\"screenshot.png\">"
+  }]
+}
+```
+
+- 非图片会被拒，响应里用 `skipped` 列出原因，状态码 400（一张都没传成功时）。
+- 直链的 scheme 会认 `X-Forwarded-Proto`：反代在 HTTPS 后面时不会生成 `http://` 的链接。
+- 站点配了 `protected_routes` 密码的话，接口同样需要登录态（Cookie）；脚本可以先
+  `curl -c cookies.txt '…/img/?pwd=你的密码'` 拿 Cookie，再带 `-b cookies.txt` 上传。
+
+### 安全边界
+
+- 上传要 `rule` 含 `w`，没有写权限连接口都进不去；
+- 扩展名白名单之外的一律拒收，**`.svg` 不在白名单里** —— SVG 可以内嵌脚本，直接访问就是同源 XSS；
+- 扩展名对得上但内容不像图片的（比如把一段 HTML 改名成 `.png`）也会被拒；
+- 直链响应带 `Content-Disposition: inline` 和全局的 `X-Content-Type-Options: nosniff`；
+- 目录里原有的非图片文件**仍然按普通预览处理**（不因为切了模式就 404），所以历史文件不会凭空消失。
+
+图床站点同样可以关掉整目录打包：见下一节的 `folder_download`。
 
 ## ⬇️ 下载
 
@@ -138,6 +226,26 @@ nav-file-hub -config /data/config.yaml -data-dir /data -no-tray
 - 单个目录超过 **20000 个文件**会拒绝打包，提示你分目录下载 —— 一次性几百 MB 的包中途断了只会拿到坏包。
 
 打包时会套用与列表页相同的过滤规则：`hidden` 规则、`.navignore`、回收站 `.deleted`、符号链接都不会进包。
+
+### 关掉打包下载
+
+打包要遍历目录并压缩，是这套东西里最吃 CPU 的操作，公开分享的场景往往不需要。两级开关，**站点优先**：
+
+```yaml
+folder_download: false      # 全局：所有站点都不能打包
+
+sites:
+  - name: 共享
+    url: '/data/*'
+    router: "share"
+    folder_download: true   # 这个站点例外，仍然允许打包
+```
+
+不写 `folder_download` 就是允许（保持旧行为，配置文件里不会多出这个键）。
+关掉之后不只是少一个按钮：`?download=true` 会直接返回 **403** —— 藏起来的开关等于没有。
+单文件下载不受影响。
+
+配置页的「全局」区有对应复选框；站点卡片里可以把单个站点覆盖成「跟随全局 / 允许 / 禁止」。
 
 ## ⚙️ 配置
 
@@ -215,11 +323,19 @@ sites:
     url: 'D:\test\*.docx' # window路径必须加单引号,否则会报错
     router: "doc"
     rule: "rwd" #read, write, delete(注释此参数则默认只读;设为空没有任何权限,仅展示列表名称.)
+
+  - name: 图床
+    url: '/data/images/*' # 图片放这个目录
+    router: "img"
+    rule: "rwd" # 没有 w 就只能看，传不上去
+    mode: gallery # 列表变图墙，图片走直链
 ```
 
 ### 配置说明
 - **port**：服务器端口。
 - **trash_retention_days**：回收站保留天数，超过自动清理；不写或 `0` 表示永久保留。
+- **folder_download**：是否允许把文件夹打成 zip 下载，默认允许；写 `false` 即全局关闭。
+  站点里可以单独覆盖，见「关掉打包下载」。
 - **protected_routes**：密码保护路由，`pwd` 为空表示无需密码。
   - `pwd`：主密码。
   - `pwds`：同一路由的额外密码，任意一个都能进。适合「自己的密码 + 给朋友的临时密码」，
@@ -229,6 +345,8 @@ sites:
   - `url`：本地路径，支持通配符（`*` 或 `*.ext`）。
   - `router`：路由名称。
   - `rule`：权限字符串（r=读, w=写, d=删）。
+  - `mode`：站点呈现方式。留空是普通文件列表，`gallery` 是图床（图墙 + 图片直链）。
+  - `folder_download`：覆盖全局的打包下载开关；不写表示跟随全局。
   - `pin`：置顶显示。
   - `hide`：隐藏站点。
   - `hidden`：站点内要隐藏的目录/文件，详见下方「按目录隐藏」一节。
@@ -332,6 +450,8 @@ docs/draft.md
   支持 macOS / Linux / Windows：Windows 下会直接列出各盘符。
 - **表单与源码双视图**：表单保存会把值「贴」回原 YAML，尽量保住注释与引号风格；
   改坏了可以切到「源码模式」直接编辑。
+- **开关**：「全局」区有「允许把文件夹打包成 zip 下载」的复选框；站点卡片里能选
+  「模式（普通文件列表 / 图床）」和「打包下载（跟随全局 / 允许 / 禁止）」。
 - **安全边界**：没设密码的路由，路径选择器只允许**本机**访问 ——
   它能列出整台机器的目录结构，不该让同一内网的人随便点。经过反向代理的请求
   一律按远程处理。要给内网其他人用，请给这个 router 配密码。

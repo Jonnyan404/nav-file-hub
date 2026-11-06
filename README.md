@@ -8,6 +8,7 @@
 - **文件浏览器**：浏览本地目录，支持文件上传、下载、删除、重命名。
 - **回收站**：删除先进回收站，记录原路径，可一键恢复；支持保留期自动清理。
 - **按目录隐藏**：指定目录只在列表里消失，知道地址仍可访问（隐藏不是权限）。
+- **图床模式**：`mode: gallery` 把目录变成图墙，图片走直链；上传接口可直接接 PicGo / PicList / ShareX / uPic。
 - **通配符支持**：使用 `*` 或 `*.ext` 过滤文件类型（如 `*.docx`）。
 - **二维码下载**：为文件生成二维码，方便移动设备下载。
 - **密码保护**：为特定路由设置密码访问。
@@ -90,6 +91,7 @@ macOS 版的配置和日志分别存放在 `~/Library/Application Support/NavFil
 - `/app/`：文件浏览器（示例路由）。
 - `/doc/`：仅显示 `.docx` 文件（示例路由）。
 - `/app/trash`：回收站（把 `app` 换成你的 `router` 名）。
+- `POST /app/upload`：上传接口（加 `?format=json` 拿 JSON，见「接入第三方上传工具」）。
 - `/config/`：在线编辑配置文件。
 
 ## ⚙️ 配置
@@ -268,6 +270,99 @@ docs/draft.md
 隐藏规则的生效范围：文件列表、目录树、Markdown 站点文件列表、搜索。**路由层不做任何拦截**——隐藏只是「不上台面」，不是权限控制。真要挡人，请给这个 router 配 `protected_routes` 密码，或者把目录移出站点根目录。
 
 > 目录树本来就跳过所有 `.` 开头的目录，但文件列表不会（`.env`、`.git` 这类仍会显示），需要的话用 `hidden` 或 `.navignore` 明确挡掉。
+
+## 📤 接入第三方上传工具（PicGo / ShareX / uPic）
+
+图床模式（`mode: gallery`）自带一个可以直接被外部工具调用的上传接口，不用额外插件：
+
+```
+POST /{router}/upload?format=json
+```
+
+- 文件字段名**任意**：接口会遍历所有带文件名的 part，所以 `file`、`image`、`files` 都能用。
+- `format=json`（或请求头 `Accept: application/json`）时返回 JSON，否则 302 回列表页。
+- 返回体同时给了两种形状：`files[]` 给网页端用，顶层扁平字段给第三方工具用。
+
+```json
+{
+  "ok": true,
+  "url": "http://host/img/2026/photo.png",
+  "markdown": "![photo.png](http://host/img/2026/photo.png)",
+  "html": "<img src=\"http://host/img/2026/photo.png\" alt=\"photo.png\">",
+  "name": "photo.png",
+  "path": "photo.png",
+  "files": [
+    { "name": "photo.png", "url": "http://host/img/2026/photo.png", "markdown": "…", "html": "…" }
+  ]
+}
+```
+
+> 为什么要有顶层 `url`：PicGo 的 `jsonPath` 是 `split('.')` 逐层取值，**不支持 `files[0]` 这种数组下标**，只有扁平字段才能用默认配置直接跑通。ShareX 两种都认。
+
+### 鉴权
+
+受 `protected_routes` 保护的路由，除了浏览器登录，还支持三种给脚本/工具用的方式：
+
+| 方式 | 写法 | 说明 |
+| --- | --- | --- |
+| 请求头（推荐） | `X-Auth-Pwd: 密码` | 不进 URL、不进日志 |
+| Bearer | `Authorization: Bearer 密码` | 工具只有 Token 一栏时用这个 |
+| 查询参数 | `?pwd=密码&format=json` | 方便，但密码会留在访问日志里 |
+
+`?pwd=` 在 GET 上仍然会 302 去掉密码；POST 则**直接放行**（302 会把上传的请求体丢掉，等于「密码对了也传不上去」）。
+
+### PicGo / PicList
+
+装插件 `picgo-plugin-web-uploader`（图床列表里叫「自定义 Web 图床」），填四个值：
+
+| 配置项 | 值 |
+| --- | --- |
+| API 地址 | `http://your-host/img/upload?format=json` |
+| POST 参数名 | `file` |
+| JSON 路径 | `url` |
+| 自定义请求头 | `{"X-Auth-Pwd":"你的密码"}`（路由没设密码就留空） |
+
+PicList 兼容 PicGo 插件，配置方式一样。
+
+### ShareX
+
+新建自定义上传器，或直接导入 `.sxcu`：
+
+```json
+{
+  "Version": "15.0.0",
+  "Name": "Nav-File-Hub",
+  "DestinationType": "ImageUploader",
+  "RequestMethod": "POST",
+  "RequestURL": "http://your-host/img/upload?format=json",
+  "Headers": { "X-Auth-Pwd": "你的密码" },
+  "Body": "MultipartFormData",
+  "FileFormName": "file",
+  "URL": "{json:url}",
+  "ErrorMessage": "{json:error}"
+}
+```
+
+`{json:files[0].url}` 也能用（ShareX 走的是 JsonPath，支持数组下标）。
+
+### uPic
+
+自定义图床 → API 地址填 `http://your-host/img/upload?format=json`，请求方式 `POST`，文件字段名 `file`，URL 路径 `url`，自定义 Header 加一条 `X-Auth-Pwd: 你的密码`。
+
+### 命令行
+
+```bash
+curl -H "X-Auth-Pwd: 你的密码" \
+     -F "file=@photo.png" \
+     "http://your-host/img/upload?format=json"
+```
+
+### 已知边界
+
+- **只能传到站点根目录**：接口支持 `?path=子目录`，但多数客户端不会给每个请求拼参数。要分目录就多配几个站点。
+- **不做图片处理**：没有压缩、水印、缩略图，也不生成 `ThumbnailURL`。需要的话交给 PicList 这类客户端在上传前处理。
+- **不支持 WebDAV**：PicGo 的 WebDAV 上传器用不了，请用上面的自定义上传器。
+- **文件名保留原名**，重名自动加序号（`a.png` → `a (1).png`），不做随机重命名。
 
 ## 📄 许可证
 

@@ -691,6 +691,40 @@ curl -H "X-Auth-Pwd: 你的密码" \
 - **不支持 WebDAV**：PicGo 的 WebDAV 上传器用不了，请用上面的自定义上传器
 - **文件名保留原名**，重名自动加序号（`a.png` → `a (1).png`），不做随机重命名
 
+## 目录 JSON（给 App / 脚本）
+
+安卓 App、脚本、第三方工具不需要解析 HTML：在任意目录地址后加 `?format=json`
+（或请求头 `Accept: application/json`）：
+
+```bash
+curl -H 'X-Auth-Pwd: 你的密码' 'http://192.168.1.2:10000/files/?format=json'
+```
+
+```json
+{
+  "ok": true,
+  "site": { "name": "文件", "router": "files", "mode": "", "rule": "rwd",
+            "canRead": true, "canWrite": true, "canDelete": true },
+  "path": "",
+  "parent": "",
+  "crumbs": [],
+  "count": 2,
+  "entries": [
+    { "name": "photo.png", "path": "photo.png", "isDir": false, "size": 20481,
+      "sizeText": "20.0 KB", "modTime": "2026-11-07T16:13:32+08:00",
+      "url": "http://192.168.1.2:10000/files/photo.png" }
+  ]
+}
+```
+
+- 目录项没有 `url`（用 `path` 自己进），文件项带完整直链（含子路径前缀）。
+- 图床站点（`mode: gallery`）同样支持：`entries` 只含图片与子目录，
+  图片多一个 `dim`（如 `1920×1080`），`url` 可直接贴出去。
+- `modTime` 是 RFC3339，客户端自己转本地时区。
+- 鉴权和上传接口是同一套：`X-Auth-Pwd: 密码` 或 `Authorization: Bearer 密码`。
+- 隐藏规则（`hidden` / `.navignore`）照常生效 —— 列表里看不到的，JSON 里也没有。
+- 浏览器的 `Accept` 带 `text/html` 时仍然返回页面，不会被 JSON 抢走。
+
 ## 常见问题
 
 **打开 localhost:10000 没反应？** 端口被占了。换一个：`./nav-file-hub -port 8080`，或改配置里的 `port` 后重启。

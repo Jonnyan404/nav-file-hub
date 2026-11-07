@@ -244,7 +244,7 @@ Caddy 的 `handle /nav/*` 同样保留完整路径。如果你用的是 `handle_
 | Linux ARMv7（树莓派等） | `nav-file-hub-linux-armv7` |
 | OpenWrt MIPS 小端（MT7621 等） | `nav-file-hub-linux-mipsle` |
 | OpenWrt MIPS 大端（ath79 等） | `nav-file-hub-linux-mips` |
-| Android 7.0+（手机/平板） | `nav-file-hub-android-<版本>.apk` |
+| Android 7.0+（手机/平板） | `nav-file-hub-android-<版本>-*.apk`（按架构拆包） |
 
 ### Windows
 
@@ -319,10 +319,17 @@ ssh root@192.168.1.1 '/etc/init.d/nav-file-hub enable && /etc/init.d/nav-file-hu
 
 ### Android
 
-每个 Release 附带 `nav-file-hub-android-<版本>.apk`（内含 arm64-v8a 与 armeabi-v7a，
-Android 7.0+）。版本号与 Release 一致，App 内「设置与关于」可查看客户端与服务端版本。
+每个 Release 附带 4 个 APK（Android 7.0+），版本号与 Release 一致，
+App 内「设置与关于」可查看客户端与服务端版本：
 
-- 下载 APK 直接安装（侧载，未上架应用商店）。
+| 文件 | 适用 |
+| --- | --- |
+| `nav-file-hub-android-<版本>-arm64-v8a.apk` | 绝大多数 2019 年后的手机 |
+| `nav-file-hub-android-<版本>-armeabi-v7a.apk` | 老设备 |
+| `nav-file-hub-android-<版本>-x86_64.apk` | 模拟器 / ChromeOS |
+| `nav-file-hub-android-<版本>-universal.apk` | 全架构兜底 |
+
+- 下载对应架构的 APK 直接安装（侧载，未上架应用商店）。
 - App 既是**客户端**（连 NAS / 路由器 / VPS 上的 NavFileHub，浏览 / 上传 / 下载 /
   重命名 / 删除 / 回收站一应俱全），也是**服务器**（手机自己开一台文件站，
   局域网内可访问）。

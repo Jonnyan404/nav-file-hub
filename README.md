@@ -727,6 +727,23 @@ curl -H 'X-Auth-Pwd: 你的密码' 'http://192.168.1.2:10000/files/?format=json'
 - 隐藏规则（`hidden` / `.navignore`）照常生效 —— 列表里看不到的，JSON 里也没有。
 - 浏览器的 `Accept` 带 `text/html` 时仍然返回页面，不会被 JSON 抢走。
 
+另外两个给客户端的入口：
+
+```bash
+# 导航：sites 是网页版首页的卡片，all 是全部站点（客户端统一入口）
+curl 'http://192.168.1.2:10000/?format=json'
+# {"ok":true,"title":"...","sites":[...],
+#  "all":[{"name":"文件","router":"files","kind":"files",...},
+#         {"name":"笔记","router":"notes","kind":"md",...},
+#         {"name":"图片","router":"img","kind":"gallery",...}]}
+
+# Markdown 站点：文章列表（正文仍是服务端渲染好的 HTML 页面）
+curl 'http://192.168.1.2:10000/notes/?format=json'
+# {"ok":true,"kind":"md","entries":[{"name":"a.md","url":".../notes/a.md"}]}
+```
+
+`kind` 取值：`files` / `gallery` / `md` / `external`。
+
 ## 常见问题
 
 **打开 localhost:10000 没反应？** 端口被占了。换一个：`./nav-file-hub -port 8080`，或改配置里的 `port` 后重启。

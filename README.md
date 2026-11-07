@@ -244,6 +244,7 @@ Caddy 的 `handle /nav/*` 同样保留完整路径。如果你用的是 `handle_
 | Linux ARMv7（树莓派等） | `nav-file-hub-linux-armv7` |
 | OpenWrt MIPS 小端（MT7621 等） | `nav-file-hub-linux-mipsle` |
 | OpenWrt MIPS 大端（ath79 等） | `nav-file-hub-linux-mips` |
+| Android 7.0+（手机/平板） | `nav-file-hub-android-<版本>.apk` |
 
 ### Windows
 
@@ -315,6 +316,18 @@ ssh root@192.168.1.1 '/etc/init.d/nav-file-hub enable && /etc/init.d/nav-file-hu
 
 > ⚠️ 体积：二进制约 30 MB。闪存只有 16 MB 的老路由装不下，需要 extroot / U 盘，
 > 或者直接用 ARM64 / x86 的设备。这是 Go 静态二进制的固有体积，不是配置问题。
+
+### Android
+
+每个 Release 附带 `nav-file-hub-android-<版本>.apk`（内含 arm64-v8a 与 armeabi-v7a，
+Android 7.0+）。版本号与 Release 一致，App 内「设置与关于」可查看客户端与服务端版本。
+
+- 下载 APK 直接安装（侧载，未上架应用商店）。
+- App 既是**客户端**（连 NAS / 路由器 / VPS 上的 NavFileHub，浏览 / 上传 / 下载 /
+  重命名 / 删除 / 回收站一应俱全），也是**服务器**（手机自己开一台文件站，
+  局域网内可访问）。
+- App 图标即桌面端的小辣椒托盘图标。
+- 客户端需要服务端 v2026.11 及以上（用到 `?format=json` 系列接口）。
 
 ### 校验下载（可选）
 

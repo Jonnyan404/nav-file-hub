@@ -1,0 +1,70 @@
+#!/bin/sh /etc/rc.common
+
+# OpenWrt procd 服务脚本
+#
+# 只做三件事：按 UCI 里的端口/前缀拉起二进制、崩溃后拉回来、把日志交给 logd。
+# 二进制本身不依赖任何动态库（CGO_ENABLED=0 的静态 Go 程序），所以没有
+# 额外的依赖包要装 —— 这也是它能直接丢到路由器上跑的原因。
+#
+# 用法：
+#   /etc/init.d/nav-file-hub enable     # 开机自启
+#   /etc/init.d/nav-file-hub start
+#   /etc/init.d/nav-file-hub status
+#   logread -e nav-file-hub             # 看日志
+
+START=95
+STOP=10
+USE_PROCD=1
+
+PROG=/usr/bin/nav-file-hub
+CONF=/etc/nav-file-hub/config.yaml
+DATA=/etc/nav-file-hub
+
+start_service() {
+    config_load nav-file-hub
+
+    local enabled port prefix
+    config_get_bool enabled main enabled 1
+    config_get port main port 10000
+    config_get prefix main prefix ""
+
+    [ "$enabled" = "1" ] || {
+        logger -t nav-file-hub "已在 /etc/config/nav-file-hub 里禁用，跳过启动"
+        return 0
+    }
+
+    if [ ! -x "$PROG" ]; then
+        logger -t nav-file-hub "找不到可执行文件：$PROG"
+        return 1
+    fi
+
+    # 配置缺失时不要「启动一个空站点」：直接报错，让用户知道该放哪个文件
+    if [ ! -f "$CONF" ]; then
+        logger -t nav-file-hub "缺少配置文件：$CONF（参考 openwrt/config.yaml）"
+        return 1
+    fi
+
+    procd_open_instance
+    procd_set_param command "$PROG" \
+        -config "$CONF" \
+        -data-dir "$DATA" \
+        -host 0.0.0.0 \
+        -port "$port" \
+        -no-tray
+    [ -n "$prefix" ] && procd_append_param command -prefix "$prefix"
+
+    # respawn：路由器上内存紧张，OOM 或崩溃后自动拉起。
+    # threshold 给 3600 秒：一小时里崩超过 5 次就停下，避免疯狂重启把日志刷满。
+    procd_set_param respawn 3600 5 5
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    # 上传/下载会同时开多个连接，默认 1024 在大目录批量下载时不够
+    procd_set_param limits nofile="4096 4096"
+    procd_close_instance
+
+    logger -t nav-file-hub "启动：port=$port prefix=${prefix:-/}"
+}
+
+service_triggers() {
+    procd_add_reload_trigger "nav-file-hub"
+}

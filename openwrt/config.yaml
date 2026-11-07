@@ -1,0 +1,28 @@
+# /etc/nav-file-hub/config.yaml —— OpenWrt 上的站点配置
+#
+# 这个文件不存在时服务不会启动（init 脚本会报错说明），
+# 因为「空站点」在路由器上只会让人以为服务坏了。
+
+title: Nav-File-Hub
+
+port: 10000
+
+# 子路径部署时填这里（与 /etc/config/nav-file-hub 里的 prefix 二选一即可，
+# 两处都写时以命令行 -prefix 为准）
+# prefix: /nav
+
+protected_routes:
+  # 配置页建议加密码：路由器上的配置页能看到整台设备的目录结构
+  - router: "config"
+    pwd: "改成你自己的密码"
+
+sites:
+  # 共享目录：换成你实际的挂载点（U 盘通常是 /mnt/sda1，extroot 可能是 /overlay）
+  - name: 共享文件
+    url: '/mnt/data/*'
+    router: "files"
+    rule: "rw"          # 想允许删除改成 "rwd"
+
+  - name: 站点配置
+    url: config.yaml
+    router: "config"

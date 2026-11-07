@@ -1,0 +1,13 @@
+# /etc/config/nav-file-hub（UCI）
+#
+# 这里只管「怎么启动」；站点、权限、密码仍然在 /etc/nav-file-hub/config.yaml。
+# 改完执行 /etc/init.d/nav-file-hub restart 生效。
+
+config nav-file-hub 'main'
+    option enabled '1'
+
+    # 监听所有网卡的 10000 端口；只给局域网用可以保持默认
+    option port '10000'
+
+    # 子路径部署前缀，例如挂在 /nav/ 下就填 /nav；不需要就保持注释
+    # option prefix '/nav'

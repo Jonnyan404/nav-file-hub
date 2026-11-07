@@ -242,6 +242,8 @@ Caddy 的 `handle /nav/*` 同样保留完整路径。如果你用的是 `handle_
 | Linux x86_64 | `nav-file-hub-linux-amd64` |
 | Linux ARM64 | `nav-file-hub-linux-arm64` |
 | Linux ARMv7（树莓派等） | `nav-file-hub-linux-armv7` |
+| OpenWrt MIPS 小端（MT7621 等） | `nav-file-hub-linux-mipsle` |
+| OpenWrt MIPS 大端（ath79 等） | `nav-file-hub-linux-mips` |
 
 ### Windows
 
@@ -263,6 +265,56 @@ Caddy 的 `handle /nav/*` 同样保留完整路径。如果你用的是 `handle_
 chmod +x nav-file-hub-linux-amd64
 ./nav-file-hub-linux-amd64
 ```
+
+### OpenWrt
+
+二进制是 `CGO_ENABLED=0` 的**静态链接**程序，不依赖 musl/glibc，也没有运行时依赖，
+所以可以直接丢到路由器上跑（已在 OpenWrt 24.10 的 x86_64 容器里验过：procd 启动、
+崩溃拉起、重启自启、页面与文件下载都正常）。
+
+**先确认路由器的架构**，再挑对应的包：
+
+```sh
+opkg print-architecture        # 25.12 起用 cat /etc/apk/arch
+```
+
+| 设备架构名 | 常见设备 | 下载这个 |
+| --- | --- | --- |
+| `mipsel_24kc` | ramips / MT7621 | `nav-file-hub-linux-mipsle` |
+| `mips_24kc` | ath79 / ar71xx | `nav-file-hub-linux-mips` |
+| `arm_cortex-a7` / `-a9` | ipq40xx 等 | `nav-file-hub-linux-armv7` |
+| `aarch64_cortex-a53` | filogic / 树莓派 | `nav-file-hub-linux-arm64` |
+| `x86_64` | 软路由 | `nav-file-hub-linux-amd64` |
+
+**安装**（把 `mipsle` 换成你的架构）：
+
+```sh
+# 1) 二进制
+scp nav-file-hub-linux-mipsle root@192.168.1.1:/usr/bin/nav-file-hub
+ssh root@192.168.1.1 'chmod +x /usr/bin/nav-file-hub'
+
+# 2) 配置 + procd 服务脚本（本仓库 openwrt/ 目录）
+ssh root@192.168.1.1 'mkdir -p /etc/nav-file-hub'
+scp openwrt/config.yaml       root@192.168.1.1:/etc/nav-file-hub/config.yaml
+scp openwrt/nav-file-hub.init root@192.168.1.1:/etc/init.d/nav-file-hub
+scp openwrt/nav-file-hub.uci  root@192.168.1.1:/etc/config/nav-file-hub
+ssh root@192.168.1.1 'chmod +x /etc/init.d/nav-file-hub'
+
+# 3) 开机自启并启动
+ssh root@192.168.1.1 '/etc/init.d/nav-file-hub enable && /etc/init.d/nav-file-hub start'
+```
+
+打开 `http://192.168.1.1:10000` 即可。
+
+- 端口 / 子路径前缀 / 临时停用：改 `/etc/config/nav-file-hub`（UCI），然后
+  `/etc/init.d/nav-file-hub restart`。
+- 站点、权限、密码仍然在 `/etc/nav-file-hub/config.yaml`，改完自动热重载。
+- 日志：`logread -e nav-file-hub`；崩溃后 procd 会自动拉起。
+- 共享目录换成你实际的挂载点（U 盘一般是 `/mnt/sda1`）。**注意选一个可写的分区**，
+  `/overlay` 只有几十 MB 时别往里塞大文件。
+
+> ⚠️ 体积：二进制约 30 MB。闪存只有 16 MB 的老路由装不下，需要 extroot / U 盘，
+> 或者直接用 ARM64 / x86 的设备。这是 Go 静态二进制的固有体积，不是配置问题。
 
 ### 校验下载（可选）
 

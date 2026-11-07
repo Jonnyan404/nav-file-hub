@@ -40,6 +40,13 @@ RUN set -eux; \
     chmod +x /app/nav-file-hub; \
     rm -f /tmp/checksums.txt
 
-RUN mkdir -p /app/config
+# /data 预建好：用户忘了挂卷时，默认站点至少是一个空目录而不是 404。
+# /app/config 由入口脚本按需写入默认配置。
+RUN mkdir -p /app/config /data
 
-CMD ["./nav-file-hub", "-config", "/app/config/config.yaml"]
+# 入口脚本负责「配置文件不存在时生成一份能用的默认配置」，
+# 否则空卷挂载后第一次启动会只有一个空目录。
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

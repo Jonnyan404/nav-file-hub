@@ -1,16 +1,14 @@
 # Nav-File-Hub
 
-把任意目录变成网页：导航首页、文件浏览、图床、Markdown 阅读站，一个二进制搞定。跨 Windows / macOS / Linux，无需数据库、无需运行时。
+导航首页、文件共享、图床、Markdown 阅读站，一个二进制搞定。跨 Windows / macOS / Linux，无需数据库、无需运行时。
 
 - 🧭 **导航首页** —— 搜索框 + 置顶区，把常用站点收在一页，改配置自动刷新
-- 📂 **文件浏览器** —— 列目录、上传、下载、重命名、删除；文件夹可一键打包成 zip
+- 📂 **文件共享** —— 列目录、上传、下载、重命名、删除；文件夹可一键打包成 zip
+- 📝 **Markdown 阅读站** —— 目录里的 `.md` 直接渲染成阅读站
 - 🖼 **图床模式** —— 目录变图墙，图片走直链，上传接口能接 PicGo / ShareX
 - 🔒 **按路由设密码** —— 一条路由一个密码，互不影响
 - 🗑 **回收站** —— 删除先进回收站，按原路径恢复
-- 📝 **Markdown 站点** —— 目录里的 `.md` 直接渲染成阅读站
 - 🖥 **托盘常驻** —— 双击就跑，点托盘图标打开浏览器，还能切换首页显示哪一页
-
-**新手** → [3 分钟上手](#3-分钟上手) ｜ **查字段** → [配置手册](#配置手册) ｜ **接上传工具** → [接入第三方上传工具](#接入第三方上传工具)
 
 <details>
 <summary>点开看界面截图</summary>
@@ -23,94 +21,213 @@
 
 </details>
 
-## 3 分钟上手
-
-### 第 1 步 · 跑起来
-
-到 [Releases](https://github.com/Jonnyan404/nav-file-hub/releases) 下载对应平台的包，双击运行（Linux / macOS 先 `chmod +x`）。
+## docker运行
 
 ```bash
-chmod +x nav-file-hub-darwin-arm64
-./nav-file-hub-darwin-arm64
+docker run -d --name nav-file-hub -p 10000:10000 \
+  -v /host/path/to/files:/data \
+  -v /host/path/to/config:/app/config \
+  ghcr.io/jonnyan404/nav-file-hub:latest
 ```
 
-启动后它待在系统托盘 / 菜单栏，不弹窗、不占终端。
+容器里的配置文件是 `/app/config/config.yaml`，所以挂载的是**目录** `/app/config`。也可以用仓库自带的 `docker-compose.yml`。
 
-> macOS 首次打开会被 Gatekeeper 拦一下，[这里](#macos)有放行方法。
+镜像同时发布在 Dockerhub：`jonnyan404/nav-file-hub:latest`。访问 `http://localhost:10000`。
 
-### 第 2 步 · 打开页面
+**配置目录是空的也能直接跑**：容器启动时会检查配置文件，不存在就写一份默认配置（`/data` 共享目录 + 配置编辑页），不会再出现「挂了个空卷，打开是 404」。之后改这份配置即可，热重载照常生效。
 
-浏览器访问 **`http://localhost:10000`**，或点托盘菜单里的「打开随身导航」。
-
-### 第 3 步 · 分享你的第一个目录
-
-**最省事**：一条命令，把某个目录直接变成网页（不写配置）：
+想挂在子路径（比如 `example.com/nav/`）上，给容器加一个环境变量，或直接传命令行参数：
 
 ```bash
-./nav-file-hub -root ~/Documents -port 8080
-# 打开 http://localhost:8080
+# 环境变量写法
+docker run -d --name nav-file-hub -p 10000:10000 \
+  -e NAV_PREFIX=/nav \
+  -v /host/path/to/files:/data \
+  -v /host/path/to/config:/app/config \
+  ghcr.io/jonnyan404/nav-file-hub:latest
+
+# 也可以直接传参数（入口脚本会把它们接在 -config 后面）
+docker run ... ghcr.io/jonnyan404/nav-file-hub:latest -prefix /nav
 ```
 
-**想长期用**：编辑 `config.yaml`，加一个站点（4 行）：
+反代那边要**把 `/nav/...` 原样转发**进来（不要剥前缀），见下面的[子路径部署](#子路径部署nginx--caddy-prefix)。
 
+
+## 场景①-->共享文件
+
+三种看法：普通列表、**目录树**、**分栏预览**（不离开列表就能看内容，图片 / Markdown / 文本都支持）。
+
+| 能做什么 | 说明 |
+| --- | --- |
+| 上传 | 点右上角「上传」，逐个上传并显示实时进度 |
+| 下载 | 文件直接下；文件夹一键打成 zip，**边打包边发送**，大目录不用干等 |
+| 重命名 / 删除 | 悬停行尾的图标；删除会先进回收站 |
+| 二维码 | 每行的 `QR` 按钮，手机扫码直接下这个文件 |
+| 筛选 | `/` 聚焦搜索框，`Esc` 取消选择，`↑↓` 在预览间切换 |
+
+写权限由 `rule` 决定：`r` 只能看，`w` 才能上传和重命名，`d` 才能删除。
+
+> 默认端口是 10000
+
+1. 临时共享文件目录,把[Releases](https://github.com/Jonnyan404/nav-file-hub/releases)下载的二进制直接拖到你要共享的目录下直接双击打开就默认读权限共享文件夹了
+2. 临时指定端口/目录/权限运行
+```
+nav-file-hub -root ~/Pictures -rule rwd -port 80
+```
+3. 使用配置文件`config.yaml`,放在程序同目录下
 ```yaml
 port: 10000
-
+protected_routes:
+  - router: "docs"
+    pwd: "1234"    # 给docs路由加密码保护
 sites:
   - name: 我的文档
     url: '/Users/you/Documents/*'   # Windows 写 'D:\Documents\*'，注意单引号
     router: "docs"                   # 访问地址变成 /docs/
-    rule: "r"                        # 只读
+    rule: "r"                        # r只读 w可写 d可删
+    hidden:                    # 从前端展示隐藏tmp目录和所有doc文件,手动输入路径仍然可访问
+      - tmp
+      - "*.doc"
 ```
 
-保存后自动生效（配置热重载，不用重启），访问 http://localhost:10000/docs/ 就能看到文件了。
+文件夹打包下载可以用 `folder_download` 全局关掉，也可以在单个站点里覆盖（见 [配置手册](#配置手册)）。
 
-> 配置文件在哪？优先读当前目录的 `config.yaml`；没有的话读用户配置目录（macOS 是 `~/Library/Application Support/NavFileHub/config.yaml`）。
->
-> 一个都没有也能跑 —— 会退化成「当前目录的只读文件浏览器」。
+## 场景②-->导航站
 
-### 接下来常做的五件事
+> 程序默认无配置文件时,为共享文件模式
 
-| 想做的事 | 怎么做 |
-| --- | --- |
-| 首页加一张外链卡片 | 站点只写 `name` + `url`，**不写 `router`** |
-| 自己也能上传 / 改名 / 删除 | `rule: "rwd"`（r 读、w 写、d 删） |
-| 给这个目录加密码 | 加一段 `protected_routes`，见下 |
-| 变成图床（看图 + 直链） | 站点加 `mode: "gallery"` |
-| 手机上看电脑里的文件 | 文件列表里点右侧 `QR` 按钮，扫码 |
+当配置文件存在时,则首页默认是导航站,你可以通过托盘菜单或者配置文件`router`参数`/`来自定义首页展示导航/文件共享/markdown 阅读站/图床.
 
-加密码（`router` 要和站点里的对上）：
-
-```yaml
+示例配置如下:
+```
+port: 10000
 protected_routes:
-  - router: "docs"
-    pwd: "1234"
+  - router: "internal"
+    pwd: "1234"    # 给internal路由加密码
+sites:
+  # 外链卡片：不写 router，就只在首页出现
+  - name: GitHub
+    url: https://github.com/jonnyan404
+    pin: true                  # 置顶
+    #hide: true                # 隐藏此条外链,仅当无router时生效
+  # 只在 /internal 下出现的站点
+  - name: 内部工具
+    url: http://192.168.1.100/tools
+    router: "internal"
 ```
 
-变图床：
 
-```yaml
+## 场景③-->markdown 阅读站
+
+> 风格是 readthedoc 样式
+
+示例配置如下:
+```
+port: 10000
+protected_routes:
+  - router: "md"
+    pwd: "1234"    # 给md路由加密码
 sites:
-  - name: 我的图床
-    url: '/Users/you/Pictures/*'
+  # 只渲染 md 文件的阅读站
+  - name: 笔记
+    url: '/data/notes/*.md'
+    router: "md"
+  - name: 笔记
+    url: '/data/notes/*.md'
+    router: "/"  # 把 markdown阅读站设为首页
+```
+
+## 场景④-->图床
+
+站点加一行 `mode: "gallery"`，这个目录就变成图墙：
+
+- 缩略图按修改时间倒序排列，点开看原图，支持网格 / 列表切换、按文件名筛选、按时间/名称/大小排序
+- 图片走**直链**（`/img/photo.png` 直接返回原始字节），贴到别处就能用
+- 上传支持拖拽、粘贴（⌘/Ctrl+V）、点「上传图片」
+- 单选或多选后可一键复制直链 / Markdown / HTML（快捷键 `1` `2` `3`）
+- 只收图片：按扩展名 + 内容嗅探双检，SVG / HTML 一律拒收
+
+想接 PicGo、ShareX 这些外部工具，见 [接入第三方上传工具](#接入第三方上传工具)。
+
+示例配置如下:
+```yaml
+port: 10000
+protected_routes:
+  - router: "img"
+    pwd: "1234"    # 给img路由加密码
+sites:
+  # 图床
+  - name: 图片
+    url: '/data/img/*'
     router: "img"
     rule: "rwd"
-    mode: "gallery"     # 加上这一行
+    mode: "gallery"
 ```
 
-## 先认识三个词
+## 场景⑤-->配置可视化
 
-配置里 90% 的内容就是这三个字段，理解了就不会配错：
+加一个站点，把 `url` 指向配置文件本身即可：
 
-| 字段 | 回答的问题 | 例子 |
-| --- | --- | --- |
-| `url` | 文件从哪来？ | `'/data/*'`、`'D:\test\*'`、`https://github.com/you` |
-| `router` | 挂在哪个网址下？ | `"docs"` → 访问 `/docs/`；**留空 = 只在首页当卡片** |
-| `rule` | 谁能干什么？ | `r` 读、`w` 写、`d` 删，可组合成 `"rwd"` |
+```yaml
+port: 10000
+protected_routes:
+  - router: "config"
+    pwd: "1234"    # 给config路由加密码
+sites:
+  - name: 配置
+    url: config.yaml
+    router: "config"
+```
 
-连起来读就是一句话：**把 `url` 这个目录，挂到 `router` 这个网址下，给它 `rule` 权限。**
+之后访问 `/config/` 就是可视化编辑器：表单和 YAML 源码两个模式随时切换，保存后两边同步。
 
-`url` 末尾的 `*` 是通配符：`/data/*` 是「目录下所有东西」，`/data/*.md` 是「只要 md 文件」，`/data/readme.md` 是「只要这一个文件」。
+几个顺手的细节：
+
+- **地址框可以从已有地址里选**：下拉候选是全部站点地址去重后的结果。同一个目录常要配多个站点（比如 `/files` 浏览 + `/img` 图床），点一下就能复用，不用手抄长路径。
+- 全局区可以设置**访问前缀** `prefix`、端口、回收站保留天数、文件夹打包下载总开关；站点卡片里能覆盖打包开关、切换图床模式。
+- 改配置会校验：前缀写错、路由冲突、把自己锁在门外，都会在保存前挡住并说明原因。
+
+## 子路径部署（nginx / caddy prefix）
+
+默认部署在域名根（`/`）。如果要挂在 `https://example.com/nav/` 这种子路径下，
+程序需要知道前缀：它会把进站请求的前缀剥掉，并给所有生成的链接加回去。
+
+配置里加一行（或命令行 `-prefix /nav`、容器环境变量 `NAV_PREFIX=/nav`）：
+
+```yaml
+prefix: /nav
+```
+
+> 关键点：反代要**保留**前缀转发（`proxy_pass` 不带尾部斜杠），别把 `/nav` 剥掉。
+> 如果反代已经剥了前缀，这里就留空 —— 两种写法只能选一种，混着来会 404。
+
+**nginx**
+
+```nginx
+location /nav/ {
+    proxy_pass http://127.0.0.1:10000;   # 注意：结尾没有斜杠，路径原样转发
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    client_max_body_size 0;             # 上传大文件不被 413 拦掉
+}
+```
+
+**Caddy**
+
+```caddyfile
+example.com {
+    handle /nav/* {
+        reverse_proxy 127.0.0.1:10000
+    }
+}
+```
+
+Caddy 的 `handle /nav/*` 同样保留完整路径。如果你用的是 `handle_path`（它会剥前缀），
+那就不要把 `prefix` 配进来。
+
+配好后先访问 `http://127.0.0.1:10000/nav/` 自测：首页、静态资源、图片直链都能打开，
+再套反代。前缀只影响路径，不影响已有的 `router` / 权限 / 密码。
 
 ## 安装
 
@@ -120,8 +237,8 @@ sites:
 | --- | --- |
 | Windows x86_64 | `nav-file-hub-windows-amd64.exe` |
 | Windows ARM64 | `nav-file-hub-windows-arm64.exe` |
-| macOS Apple Silicon | `nav-file-hub-darwin-arm64.dmg`（或裸二进制 `-arm64`） |
-| macOS Intel | `nav-file-hub-darwin-amd64.dmg`（或裸二进制 `-amd64`） |
+| macOS Apple Silicon | `nav-file-hub-darwin-arm64` |
+| macOS Intel | `nav-file-hub-darwin-amd64` |
 | Linux x86_64 | `nav-file-hub-linux-amd64` |
 | Linux ARM64 | `nav-file-hub-linux-arm64` |
 | Linux ARMv7（树莓派等） | `nav-file-hub-linux-armv7` |
@@ -132,14 +249,13 @@ sites:
 
 ### macOS
 
-推荐 `.dmg`：打开后把 `NavFileHub` 拖进「应用程序」。
-
 首次打开会被 Gatekeeper 拦（提示「无法验证开发者」），因为安装包没做代码签名。任选一种放行：
 
 - 系统设置 → 隐私与安全性 → 找到 NavFileHub → 「仍要打开」；或
-- 终端执行 `xattr -dr com.apple.quarantine /Applications/NavFileHub.app`
+- 终端执行 `xattr -dr com.apple.quarantine  nav-file-hub-darwin-arm64 && chmod +x nav-file-hub-darwin-arm64`
 
-配置和日志分别在 `~/Library/Application Support/NavFileHub/` 和 `~/Library/Logs/NavFileHub/`。
+然后双击打开即可
+
 
 ### Linux
 
@@ -147,19 +263,6 @@ sites:
 chmod +x nav-file-hub-linux-amd64
 ./nav-file-hub-linux-amd64
 ```
-
-### Docker
-
-```bash
-docker run -d --name nav-file-hub -p 10000:10000 \
-  -v /host/path/to/files:/data \
-  -v /host/path/to/config:/app/config \
-  jonnyan404/nav-file-hub:latest
-```
-
-容器里的配置文件是 `/app/config/config.yaml`，所以挂载的是**目录** `/app/config`。也可以用仓库自带的 `docker-compose.yml`。
-
-镜像同时发布在 GHCR：`ghcr.io/jonnyan404/nav-file-hub:latest`。访问 `http://localhost:10000`。
 
 ### 校验下载（可选）
 
@@ -174,9 +277,10 @@ docker run -d --name nav-file-hub -p 10000:10000 \
 | `-config <路径>` | 指定配置文件；留空时依次尝试 `./config.yaml`、平台默认位置 |
 | `-root <目录>` | 忽略配置文件，直接以文件浏览器提供这个目录（权限看 `-rule`，默认只读） |
 | `-rule <权限>` | `-root` / 无配置兜底站点的权限：`r` 读、`w` 写、`d` 删，可组合成 `rwd`；留空表示只列名字 |
-| `-mode <模式>` | `-root` / 兜底站点的呈现方式：留空是文件列表，`gallery` 是图床 |
+| `-mode <模式>` | `-root` / 兜底站点的呈现方式：留空是文件共享，`gallery` 是图床 |
 | `-port <端口>` | 覆盖配置文件里的 `port` |
 | `-host <地址>` | 监听地址，默认所有网卡；填 `127.0.0.1` 则只允许本机访问 |
+| `-prefix <路径>` | 子路径部署前缀（如 `/nav`），覆盖配置里的 `prefix`；留空 = 域名根 |
 | `-data-dir <目录>` | 配置、日志与状态文件的存放目录（容器里挂一个卷就够） |
 | `-no-tray` | 前台运行，不启动托盘图标 |
 | `-open` | 启动后自动打开浏览器 |
@@ -213,6 +317,9 @@ trash_retention_days: 30
 # 文件夹打包下载总开关（默认开启），站点里可单独覆盖
 folder_download: true
 
+# 子路径部署前缀（如 /nav）；部署在域名根时留空或删掉这行
+# prefix: /nav
+
 protected_routes:
   - router: "app"
     pwd: "123"                 # 主密码
@@ -223,7 +330,7 @@ protected_routes:
 
 sites:
   # 本地目录：可读可写可删
-  - name: docker文件列表
+  - name: docker文件共享
     url: '/data/*'
     router: "docker"
     rule: "rwd"
@@ -275,6 +382,7 @@ sites:
 | `port` | int | `10000` | 监听端口，改完要重启 |
 | `trash_retention_days` | int | `0` | 回收站保留天数，`0` = 永久 |
 | `folder_download` | bool | `true` | 是否允许把文件夹打包成 zip 下载 |
+| `prefix` | string | 空 | 子路径部署前缀（如 `/nav`）；反代保留前缀时必填 |
 
 **`sites[]`**
 
@@ -284,7 +392,7 @@ sites:
 | `url` | string | 必填 | 本地目录 / 单个文件 / 外链，支持 `*` 通配符 |
 | `router` | string | 空 | 挂载的网址；**留空 = 只当首页卡片**，`"/"` = 根路径 |
 | `rule` | string | `r` | 权限：`r` 读、`w` 写、`d` 删；留空 = 只显示名字，点不进去 |
-| `mode` | string | 空 | 空 = 文件列表，`gallery` = 图床 |
+| `mode` | string | 空 | 空 = 文件共享，`gallery` = 图床 |
 | `pin` | bool | `false` | 首页置顶（**只对 `router` 为空的站点有效**） |
 | `hide` | bool | `false` | 首页不显示（**只对 `router` 为空的站点有效**） |
 | `hidden` | list | 空 | 站点内要隐藏的目录/文件，见 [按目录隐藏](#按目录隐藏) |
@@ -302,61 +410,22 @@ sites:
 
 | 地址 | 说明 |
 | --- | --- |
-| `/` | 首页，列出所有 `router` 为空的站点 |
-| `/{router}/` | 站点的内容：文件列表 / 图床 / Markdown 阅读站 |
+| `/` | 首页，列出所有 `router` 为空的导航站点 |
+| `/{router}/` | 站点的内容：文件共享 / 图床 / Markdown 阅读站 |
 | `/{router}/trash` | 回收站（需要 `d` 权限） |
 | `POST /{router}/upload` | 上传接口，加 `?format=json` 拿 JSON |
 | `POST /{router}/delete` | 批量删除，JSON body：`{"paths":["a.png"]}` |
 
-**在网页里编辑配置**：加一个站点，把 `url` 指向配置文件本身即可：
-
-```yaml
-sites:
-  - name: 配置
-    url: config.yaml
-    router: "config"
-```
-
-之后访问 `/config/` 就是可视化编辑器：表单和 YAML 源码两个模式随时切换，保存后两边同步。
 
 ### 几个容易踩的点
 
-- **`pin` / `hide` 对 `router` 非空的站点无效**：首页只列 `router` 为空的站点，配了也没地方生效。
+- **`hide` 对 `router` 非空的站点无效**：首页只列 `router` 为空的站点，配了也没地方生效。
 - **本地目录站点一定要写 `router`**：不写 router 的站点只当首页卡片，而卡片的链接是由 router 生成的——本地路径没 router 时链接是空的，点了没反应。
 - **`rule` 留空不是「只读」**：留空是「没有任何权限，只展示名字」，只读要写 `"r"`。
 - **`url` 写目录还是文件**：写 `'/data/*'` 是目录站，写 `'/data/a.md'` 是单文件站，写 `https://...` 是外链卡片。
 - **改 `port` 必须重启**，其它字段保存即生效。
 - **配置改坏了**：每次在网页里保存配置都会把旧版本存成 `config.yaml.backup`，可以直接拿来覆盖回去。
 
-## 导航页（首页）
-
-访问 `/` 默认看到的就是导航页：搜索框 + 置顶区 + 所有站点卡片。它不读任何目录，只读配置里的 `sites`。
-
-**只有 `router` 为空的站点会出现在这里**——这是理解配置的关键：
-
-```yaml
-sites:
-  # 卡片：不写 router，点了直接跳走
-  - name: GitHub
-    url: https://github.com/jonnyan404
-    pin: true          # 置顶到第一区
-
-  # 页面：写了 router，有自己的地址 /docs/，不进首页
-  - name: 文档
-    url: '/data/docs/*'
-    router: "docs"
-```
-
-| 字段 | 在首页上的效果 |
-| --- | --- |
-| `pin: true` | 置顶到第一区，和其余卡片之间有一条分割线（置顶的卡片不会在下面重复出现） |
-| `hide: true` | 首页完全不显示，但 `/{router}/` 照样能访问 |
-
-外链卡片点开是新标签页。
-
-**搜索**是纯前端的：输入即过滤，按名字子串匹配，不发请求、不用回车。
-
-**改完配置不用手动刷新**：首页每 5 分钟查一次版本号，发现配置变了会自己刷新。
 
 ### 用 router 做分组
 
@@ -384,37 +453,11 @@ sites:
 
 选完 `/` 会 302 跳到对应页面，选择记在配置目录的 `home-mode` 文件里，重启仍然生效。没配置的类型会置灰。
 
-## 文件浏览器
 
-站点 `rule` 含 `r` 时，`/{router}/` 就是文件列表。三种看法：普通列表、**目录树**、**分栏预览**（不离开列表就能看内容，图片 / Markdown / 文本都支持）。
-
-| 能做什么 | 说明 |
-| --- | --- |
-| 上传 | 点右上角「上传」，逐个上传并显示实时进度 |
-| 下载 | 文件直接下；文件夹一键打成 zip，**边打包边发送**，大目录不用干等 |
-| 重命名 / 删除 | 悬停行尾的图标；删除会先进回收站 |
-| 二维码 | 每行的 `QR` 按钮，手机扫码直接下这个文件 |
-| 筛选 | `/` 聚焦搜索框，`Esc` 取消选择，`↑↓` 在预览间切换 |
-
-写权限由 `rule` 决定：`r` 只能看，`w` 才能上传和重命名，`d` 才能删除。
-
-文件夹打包下载可以用 `folder_download` 全局关掉，也可以在单个站点里覆盖（见 [配置手册](#配置手册)）。
-
-## 图床模式
-
-站点加一行 `mode: "gallery"`，这个目录就变成图墙：
-
-- 缩略图按修改时间倒序排列，点开看原图，支持网格 / 列表切换、按文件名筛选、按时间/名称/大小排序
-- 图片走**直链**（`/img/photo.png` 直接返回原始字节），贴到别处就能用
-- 上传支持拖拽、粘贴（⌘/Ctrl+V）、点「上传图片」
-- 单选或多选后可一键复制直链 / Markdown / HTML（快捷键 `1` `2` `3`）
-- 只收图片：按扩展名 + 内容嗅探双检，SVG / HTML 一律拒收
-
-想接 PicGo、ShareX 这些外部工具，见 [接入第三方上传工具](#接入第三方上传工具)。
 
 ## 回收站
 
-有删除权限（`rule` 含 `d`）的站点，文件列表右上角会出现「回收站」入口，也可以直接访问 `/router/trash`。
+有删除权限（`rule` 含 `d`）的站点，文件共享右上角会出现「回收站」入口，也可以直接访问 `/router/trash`。
 
 删除文件时不会真删，而是移进站点根目录下的 `.deleted/`：
 
@@ -470,11 +513,11 @@ docs/draft.md
 | `*.bak` | glob，`*` 不跨目录 |
 | `# 注释` | 忽略 |
 
-生效范围：文件列表、目录树、Markdown 站点列表、搜索。
+生效范围：文件共享、目录树、Markdown 站点列表、搜索。
 
 > ⚠️ **隐藏不是权限**。路由层不做任何拦截，知道 `/dir/tmp` 的人照样进得去。真要挡人，给这个 router 配 `protected_routes` 密码，或把目录移出站点根。
 >
-> 另外，文件列表默认**不会**隐藏 `.env`、`.git` 这类点开头的文件（目录树会）。需要挡掉就用 `hidden` 或 `.navignore` 明确写。
+> 另外，文件共享默认**不会**隐藏 `.env`、`.git` 这类点开头的文件（目录树会）。需要挡掉就用 `hidden` 或 `.navignore` 明确写。
 
 ## 同一目录，多个路由不同权限
 
@@ -606,7 +649,7 @@ curl -H "X-Auth-Pwd: 你的密码" \
 
 **密码忘了 / 配置写坏了怎么办？** 配置是纯文本，直接改文件。在网页里保存过的话，旧版本在 `config.yaml.backup`，可以覆盖回去。实在不行删掉 `config.yaml` 重启，会退化成「当前目录只读浏览」。
 
-**`.env`、`.git` 为什么会出现在列表里？** 文件列表默认不隐藏点开头的文件（目录树会隐藏）。用 `hidden` 或 `.navignore` 明确挡掉。
+**`.env`、`.git` 为什么会出现在列表里？** 文件共享默认不隐藏点开头的文件（目录树会隐藏）。用 `hidden` 或 `.navignore` 明确挡掉。
 
 **隐藏的目录别人能进吗？** 能。隐藏只是不在列表里显示，不是权限控制。要挡人请用 `protected_routes`。
 

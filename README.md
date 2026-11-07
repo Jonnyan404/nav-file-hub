@@ -29,7 +29,7 @@ docker run -d --name nav-file-hub -p 10000:10000 \
   -v /host/path/to/config:/app/config \
   ghcr.io/jonnyan404/nav-file-hub:latest
 ```
-- 变量:NAV_PREFIX   #nginx子路径设置,反代那边要**把 `/nav/...` 原样转发**进来（不要剥前缀），见下面的[子路径部署](#子路径部署nginx--caddy-prefix)。
+- 变量:`NAV_PREFIX`   #nginx子路径设置,反代那边要**把 `/nav/...` 原样转发**进来（不要剥前缀），见下面的[子路径部署](#子路径部署nginx--caddy-prefix)。
 - docker-compose部署参考仓库根目录的 `docker-compose.yml`。
 - 镜像同时发布在 Dockerhub：`jonnyan404/nav-file-hub
 

@@ -29,29 +29,11 @@ docker run -d --name nav-file-hub -p 10000:10000 \
   -v /host/path/to/config:/app/config \
   ghcr.io/jonnyan404/nav-file-hub:latest
 ```
+- 变量:NAV_PREFIX   #nginx子路径设置,反代那边要**把 `/nav/...` 原样转发**进来（不要剥前缀），见下面的[子路径部署](#子路径部署nginx--caddy-prefix)。
+- docker-compose部署参考仓库根目录的 `docker-compose.yml`。
+- 镜像同时发布在 Dockerhub：`jonnyan404/nav-file-hub
 
-容器里的配置文件是 `/app/config/config.yaml`，所以挂载的是**目录** `/app/config`。也可以用仓库自带的 `docker-compose.yml`。
-
-镜像同时发布在 Dockerhub：`jonnyan404/nav-file-hub:latest`。访问 `http://localhost:10000`。
-
-**配置目录是空的也能直接跑**：容器启动时会检查配置文件，不存在就写一份默认配置（`/data` 共享目录 + 配置编辑页），不会再出现「挂了个空卷，打开是 404」。之后改这份配置即可，热重载照常生效。
-
-想挂在子路径（比如 `example.com/nav/`）上，给容器加一个环境变量，或直接传命令行参数：
-
-```bash
-# 环境变量写法
-docker run -d --name nav-file-hub -p 10000:10000 \
-  -e NAV_PREFIX=/nav \
-  -v /host/path/to/files:/data \
-  -v /host/path/to/config:/app/config \
-  ghcr.io/jonnyan404/nav-file-hub:latest
-
-# 也可以直接传参数（入口脚本会把它们接在 -config 后面）
-docker run ... ghcr.io/jonnyan404/nav-file-hub:latest -prefix /nav
-```
-
-反代那边要**把 `/nav/...` 原样转发**进来（不要剥前缀），见下面的[子路径部署](#子路径部署nginx--caddy-prefix)。
-
+访问 `http://localhost:10000`
 
 ## 场景①-->共享文件
 

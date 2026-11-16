@@ -179,7 +179,8 @@ sites:
 - **clean URL**：`/blog/about` 命中磁盘上的 `about.html`（Hugo 开 `uglyURLs`、手工维护的平铺 html 站点都靠这个），直接 200，不改写地址栏
 - **缓存**：HTML `no-cache`（改一行立刻能看到）；文件名带内容哈希的（`app-a1b2c3d4.js`）给一年 `immutable`；其余一天
 - 站点自带 `404.html` 时用它当错误页，否则一行纯文本
-- 只读：POST/PUT 等一律 405；**不列目录**（没有 index 就是 404，同 nginx `autoindex off`）
+- 只读：POST/PUT 等一律 405，目录 JSON 里的 `canWrite` / `canDelete` 也如实报 `false` —— 网页版和安卓客户端的「上传 / 删除 / 改名」按钮会自动消失，不会出现「点了才报错」
+- **不列目录**（没有 index 就是 404，同 nginx `autoindex off`）
 - 不套本站的 CSP / Referrer-Policy，否则站点自己的内联脚本和统计会被拦
 - **点文件不对外**（`.git`、`.env` …），`.well-known/` 例外（ACME、站点验证要用）
 

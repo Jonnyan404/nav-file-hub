@@ -176,20 +176,35 @@ sites:
 
 - `/blog/` → `index.html`，`/blog/sub/` → `sub/index.html`；少了结尾斜杠会 301 补上
 - 文件原样返回：正确的 `Content-Type`、Range（断点续传 / 视频拖动）、`If-Modified-Since` 304、HEAD
-- HTML 发 `Cache-Control: no-cache`（改一行立刻能看到），其它资源缓存一天
-- 没有扩展名的未知路径回落到 `index.html`（Vue/React 的前端路由）；带扩展名的照常 404
-- 站点自带 `404.html` 时用它当错误页
+- **clean URL**：`/blog/about` 命中磁盘上的 `about.html`（Hugo 开 `uglyURLs`、手工维护的平铺 html 站点都靠这个），直接 200，不改写地址栏
+- **缓存**：HTML `no-cache`（改一行立刻能看到）；文件名带内容哈希的（`app-a1b2c3d4.js`）给一年 `immutable`；其余一天
+- 站点自带 `404.html` 时用它当错误页，否则一行纯文本
 - 只读：POST/PUT 等一律 405；**不列目录**（没有 index 就是 404，同 nginx `autoindex off`）
 - 不套本站的 CSP / Referrer-Policy，否则站点自己的内联脚本和统计会被拦
+- **点文件不对外**（`.git`、`.env` …），`.well-known/` 例外（ACME、站点验证要用）
 
 ```yaml
 sites:
-  - name: 博客
-    url: '/data/blog/dist/*'    # 构建产物目录
+  - name: 博客            # 静态生成站（Hugo / VitePress / Astro …）
+    url: '/data/blog/dist/*'
     router: "blog"
     rule: "r"
     mode: "static"
+
+  - name: 应用            # 单页应用（Vue / React 构建产物）
+    url: '/data/app/dist/*'
+    router: "app"
+    rule: "r"
+    mode: "static"
+    spa: true             # 前端路由：未知的无扩展名路径回落 index.html
 ```
+
+`spa` 默认关闭，这点很重要：
+
+- **博客类站点**要的是「这篇文章不存在 → 404」，回一份 200 的首页对搜索引擎是错误信号，也会让死链永远发现不了。
+- **SPA** 才需要回退，而且只对「没有扩展名」的路径生效：少一个 `app.js` 时仍然 404，否则浏览器拿到 HTML 会报 `MIME type ('text/html') is not executable`，比 404 难查得多。
+
+两个模式在配置页里也能随时改：站点卡片的「模式」下拉选「静态站点」，旁边有「SPA 回退」勾选框。
 
 几个注意：
 
@@ -476,6 +491,7 @@ sites:
 | `router` | string | 空 | 挂载的网址；**留空 = 只当首页卡片**，`"/"` = 根路径 |
 | `rule` | string | `r` | 权限：`r` 读、`w` 写、`d` 删；留空 = 只显示名字，点不进去 |
 | `mode` | string | 空 | 空 = 文件共享，`gallery` = 图床，`static` = 静态站点（原样吐文件） |
+| `spa` | bool | `false` | 仅 `mode: static`：未知的无扩展名路径回落 `index.html`（前端路由） |
 | `pin` | bool | `false` | 首页置顶（**只对 `router` 为空的站点有效**） |
 | `hide` | bool | `false` | 首页不显示（**只对 `router` 为空的站点有效**） |
 | `hidden` | list | 空 | 站点内要隐藏的目录/文件，见 [按目录隐藏](#按目录隐藏) |
